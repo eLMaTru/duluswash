@@ -1,21 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const LatLng _initialPosition = LatLng(18.4861, -69.9312); // Santo Domingo
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final name = authState is AuthAuthenticated ? authState.user.name : '';
+
     return Scaffold(
+      appBar: AppBar(
+        title: Text(name.isNotEmpty ? 'Hola, $name' : 'Dulus Wash'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => ref.read(authProvider.notifier).signOut(),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           GoogleMap(
@@ -26,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
           ),
-          // Bottom sheet
           Positioned(
             left: 0,
             right: 0,
@@ -37,11 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
-                  ),
+                  BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
                 ],
               ),
               child: Column(
@@ -50,11 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text(
                     '¿Dónde te lavamos?',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
