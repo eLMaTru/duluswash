@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "846750649829",
+    "project_id": "duluswash",
+    "storage_bucket": "duluswash.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846750649829:android:91429c1096ee559ed5b30c",
+        "android_client_info": {
+          "package_name": "com.duluswash.duluswash"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "846750649829-d81kd00hd9123f486qv3q1crn2s3h5b8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1nogOk40dJxzfNrZhm-6vvfFJUiHyv8U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "846750649829-d81kd00hd9123f486qv3q1crn2s3h5b8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
