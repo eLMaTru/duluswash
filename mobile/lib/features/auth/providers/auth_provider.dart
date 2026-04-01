@@ -42,6 +42,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> signInWithGoogle() async {
+    state = AuthLoading();
+    try {
+      final user = await _repo.signInWithGoogle();
+      state = AuthAuthenticated(user);
+    } on Exception catch (e) {
+      final msg = e.toString();
+      if (msg.contains('cancelled')) {
+        state = AuthUnauthenticated();
+      } else {
+        state = AuthError(_mapError(msg));
+      }
+    }
+  }
+
   Future<void> signOut() async {
     await _repo.signOut();
     state = AuthUnauthenticated();

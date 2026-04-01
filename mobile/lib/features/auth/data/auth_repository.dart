@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 enum UserRole { customer, operator, admin }
 
@@ -41,6 +42,7 @@ class AppUser {
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final GoogleSignIn _google = GoogleSignIn();
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -50,6 +52,33 @@ class AuthRepository {
       password: password,
     );
     return _fetchUser(credential.user!.uid);
+  }
+
+  Future<AppUser> signInWithGoogle() async {
+    final googleUser = await _google.signIn();
+    if (googleUser == null) throw Exception('cancelled');
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential = await _auth.signInWithCredential(credential);
+    final user = userCredential.user!;
+
+    // Si es la primera vez, crea el documento en Firestore
+    final doc = await _db.collection('users').doc(user.uid).get();
+    if (!doc.exists) {
+      await _db.collection('users').doc(user.uid).set({
+        'email': user.email ?? '',
+        'name': user.displayName ?? googleUser.displayName ?? '',
+        'role': 'customer',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    return _fetchUser(user.uid);
   }
 
   Future<AppUser> signUp({
@@ -84,7 +113,10 @@ class AuthRepository {
     return _fetchUser(user.uid);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    await _google.signOut();
+    await _auth.signOut();
+  }
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
