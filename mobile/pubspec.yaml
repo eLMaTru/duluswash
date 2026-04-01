@@ -15,8 +15,8 @@ dependencies:
   google_maps_flutter: ^2.10.0
 
   # Auth
-  firebase_core: ^3.13.0
-  firebase_auth: ^5.5.2
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.16.0
 
   # State management
   flutter_riverpod: ^2.6.1
