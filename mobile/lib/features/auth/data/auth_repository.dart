@@ -1,26 +1,33 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+
+// TODO: replace with real API URL when deployed
+const String _apiBaseUrl = 'http://localhost:3000';
 
 enum UserRole { customer, operator, admin }
 
 class AppUser {
+  final String id;
   final String uid;
   final String email;
   final String name;
   final UserRole role;
 
   const AppUser({
+    required this.id,
     required this.uid,
     required this.email,
     required this.name,
     required this.role,
   });
 
-  factory AppUser.fromFirestore(String uid, Map<String, dynamic> data) {
+  factory AppUser.fromJson(String firebaseUid, Map<String, dynamic> data) {
     return AppUser(
-      uid: uid,
+      id: data['id'] ?? '',
+      uid: firebaseUid,
       email: data['email'] ?? '',
       name: data['name'] ?? '',
       role: _parseRole(data['role']),
@@ -29,29 +36,33 @@ class AppUser {
 
   static UserRole _parseRole(String? role) {
     switch (role) {
-      case 'operator':
-        return UserRole.operator;
-      case 'admin':
-        return UserRole.admin;
-      default:
-        return UserRole.customer;
+      case 'operator': return UserRole.operator;
+      case 'admin':    return UserRole.admin;
+      default:         return UserRole.customer;
     }
   }
 }
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
   final GoogleSignIn _google = GoogleSignIn();
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Future<AppUser> _syncWithBackend(User firebaseUser) async {
+    final token = await firebaseUser.getIdToken();
+    final res = await http.post(
+      Uri.parse('$_apiBaseUrl/api/v1/auth/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (res.statusCode != 200) throw Exception('Error al sincronizar usuario');
+    final data = jsonDecode(res.body)['user'];
+    return AppUser.fromJson(firebaseUser.uid, data);
+  }
 
   Future<AppUser> signIn(String email, String password) async {
     final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
+      email: email, password: password,
     );
-    return _fetchUser(credential.user!.uid);
+    return _syncWithBackend(credential.user!);
   }
 
   Future<AppUser> signInWithGoogle() async {
@@ -63,54 +74,18 @@ class AuthRepository {
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
-
     final userCredential = await _auth.signInWithCredential(credential);
-    final user = userCredential.user!;
-
-    // Si es la primera vez, crea el documento en Firestore
-    final doc = await _db.collection('users').doc(user.uid).get();
-    if (!doc.exists) {
-      await _db.collection('users').doc(user.uid).set({
-        'email': user.email ?? '',
-        'name': user.displayName ?? googleUser.displayName ?? '',
-        'role': 'customer',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    return _fetchUser(user.uid);
-  }
-
-  Future<AppUser> signUp({
-    required String email,
-    required String password,
-    required String name,
-    UserRole role = UserRole.customer,
-  }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    final uid = credential.user!.uid;
-    await _db.collection('users').doc(uid).set({
-      'email': email,
-      'name': name,
-      'role': role.name,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    return AppUser(uid: uid, email: email, name: name, role: role);
-  }
-
-  Future<AppUser> _fetchUser(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    if (!doc.exists) throw Exception('Usuario no encontrado');
-    return AppUser.fromFirestore(uid, doc.data()!);
+    return _syncWithBackend(userCredential.user!);
   }
 
   Future<AppUser?> getCurrentUser() async {
     final user = _auth.currentUser;
     if (user == null) return null;
-    return _fetchUser(user.uid);
+    try {
+      return await _syncWithBackend(user);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> signOut() async {

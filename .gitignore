@@ -28,3 +28,4 @@ infra/node_modules/
 
 # Misc
 *.html
+*firebase-adminsdk*.json
